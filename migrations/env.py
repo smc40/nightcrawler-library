@@ -27,7 +27,10 @@ target_metadata = None
 # ... etc.
 
 settings = PostgresSettings()
-engine = create_engine(settings.connection_string)
+
+# 'sqlalchemy.url' option is set during integration tests
+url = config.get_main_option('sqlalchemy.url')
+engine = create_engine(url) if url else create_engine(settings.connection_string)
 
 with engine.connect() as connection:
     context.configure(connection=connection, target_metadata=target_metadata)

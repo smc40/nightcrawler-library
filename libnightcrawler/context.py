@@ -1,6 +1,8 @@
 import logging
 from libnightcrawler.settings import Settings
-from libnightcrawler.db_client import DBClient
+from libnightcrawler.db.client import DBClient
+from libnightcrawler.db.schema import Cost, COST_UNIT_FACTOR
+from sqlalchemy import func
 
 
 class Context:
@@ -16,6 +18,13 @@ class Context:
             self._pg_client = DBClient(self.settings.postgres)
         return self._pg_client
 
+    @property
+    def db_session(self):
+        return self.db_client.db_session
+
+    # -------------------------------------
+    # Object storage interface
+    # -------------------------------------
     def _store_object(self, path: str, content: dict):
         logging.warning("Storing content to %s", path)
         # TODO
@@ -23,6 +32,26 @@ class Context:
     def store_object(self, tenant_id: str, path: str, content: dict):
         return self._store_object(f"{tenant_id}/{path}", content)
 
-    def report_cost(self, case_id, cost):
-        logging.info("Adding cost to {case_id}: {cose}")
-        # TODO
+    # -------------------------------------
+    # Cost management
+    # -------------------------------------
+    def report_cost(self, tenant_id, case_id, cost, unit="unit"):
+        logging.warning(f"{tenant_id}: Adding cost to {case_id}: {cost} {unit}")
+        with self.db_client.session_factory() as session:
+            session.add(Cost(
+                tenant_id=tenant_id,
+                case_id=case_id,
+                value=cost,
+                unit=unit))
+            session.commit()
+
+    def get_current_cost(self, tenant_id):
+        totals = dict()
+        # Get sum of costs group by unit
+        with self.db_client.session_factory() as session:
+            values = session.query(Cost.unit, func.sum(Cost.value)).where(Cost.tenant_id == tenant_id).group_by(Cost.unit).all()
+            for (unit, value) in values:
+                totals[unit] = totals.get(unit, 0) + value
+
+        # Combine different units
+        return sum([v*COST_UNIT_FACTOR[k] for k,v in totals.items()])

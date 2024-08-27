@@ -17,6 +17,9 @@ def add_parser(subparsers, parents):
 
 def apply(args):
     from libnightcrawler.context import Context
+    from libnightcrawler.db.schema import Case
     context = Context()
     if args.case == "list":
-        cu.print_json(context.db_client.list_cases())
+        cu.print_json([x.__dict__ for x in context.db_client.session_factory().query(Case).all()])
+    elif args.case == "get":
+        print("todo")

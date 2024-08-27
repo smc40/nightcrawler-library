@@ -35,6 +35,6 @@ export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
 ### Run tests
 
 ```sh
-python -m pytest -s tests
+python -m pytest -s --cov=libnightcrawler tests
 ```
 

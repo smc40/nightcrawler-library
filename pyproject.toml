@@ -13,6 +13,8 @@ pydantic-settings = "^2.4.0"
 psycopg2 = "^2.9.9"
 pytest = "^8.3.2"
 ruff = "^0.5.6"
+alembic-verify = "^0.1.4"
+pytest-cov = "^5.0.0"
 
 
 [build-system]
