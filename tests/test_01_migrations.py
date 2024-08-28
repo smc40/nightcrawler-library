@@ -1,8 +1,6 @@
-import os
 from pprint import pprint
 
 import pytest
-import time
 from alembicverify.util import (
     get_current_revision,
     get_head_revision,

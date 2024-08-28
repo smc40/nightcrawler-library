@@ -10,6 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     name: Testing
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD:  secret
+          POSTGRES_USER:      user
+          POSTGRES_DB:        nightcrawler
+          POSTGRES_PORT:      5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python # Set Python version
@@ -25,8 +41,6 @@ jobs:
           poetry config virtualenvs.create false
           poetry install
       - name: Lint
-        continue-on-error: true #FIXME remove when tests implemented
         run: ruff check --output-format=github .
       - name: Test
-        continue-on-error: true #FIXME remove when tests implemented
-        run: pytest --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
+        run: pytest --junitxml=junit/test-results.xml --cov=libnightcrawler --cov-report=xml --cov-report=html
