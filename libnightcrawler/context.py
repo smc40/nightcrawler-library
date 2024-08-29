@@ -35,21 +35,20 @@ class Context:
     # -------------------------------------
     # Cost management
     # -------------------------------------
-    def report_cost(self, tenant_id, case_id, cost, unit="unit"):
-        logging.warning(f"{tenant_id}: Adding cost to {case_id}: {cost} {unit}")
+    def report_cost(self, case_id, cost, unit):
+        logging.warning(f"{case_id}: Adding cost : {cost} {unit}")
         with self.db_client.session_factory() as session:
             session.add(Cost(
-                tenant_id=tenant_id,
                 case_id=case_id,
                 value=cost,
                 unit=unit))
             session.commit()
 
-    def get_current_cost(self, tenant_id):
+    def get_current_cost(self, case_id):
         totals = dict()
         # Get sum of costs group by unit
         with self.db_client.session_factory() as session:
-            values = session.query(Cost.unit, func.sum(Cost.value)).where(Cost.tenant_id == tenant_id).group_by(Cost.unit).all()
+            values = session.query(Cost.unit, func.sum(Cost.value)).where(Cost.case_id == case_id).group_by(Cost.unit).all()
             for (unit, value) in values:
                 totals[unit] = totals.get(unit, 0) + value
 

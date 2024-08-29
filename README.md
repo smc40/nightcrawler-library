@@ -32,6 +32,18 @@ Note to debian users:
 export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
 ```
 
+### Services
+
+```sh
+docker run -i -d \
+    --name nightcrawler \
+    -e POSTGRES_PASSWORD=secret \
+    -e POSTGRES_USER=user \
+    -e POSTGRES_DB=nightcrawler \
+    -p 5432:5432 \
+    citusdata/citus:12.1
+```
+
 ### Run tests
 
 ```sh

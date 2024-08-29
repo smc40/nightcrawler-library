@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import orm
+from sqlalchemy import orm, text
 from libnightcrawler.db.schema import FilterList, Tenant
 
 
@@ -49,7 +49,7 @@ def upgrade() -> None:
 
     op.create_table(
         'cases',
-        sa.Column('tenant_id', sa.Integer(), sa.ForeignKey('tenants.id', ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column('tenant_id', sa.Integer(), nullable=False, index=True),
         sa.Column('id', sa.Integer(), nullable=False, primary_key=True, index=True),
         sa.Column('name', sa.String(), nullable=False),
         sa.Column('notifications_enabled', sa.Boolean(), nullable=False, default='False'),
@@ -60,16 +60,14 @@ def upgrade() -> None:
 
     op.create_table(
         'case_members',
-        sa.Column('tenant_id', sa.Integer(), sa.ForeignKey('tenants.id', ondelete="CASCADE"), nullable=False, index=True),
-        sa.Column('case_id', sa.Integer(), sa.ForeignKey('cases.id', ondelete="CASCADE"), index=True),
-        sa.Column('user_id', sa.String(), primary_key=True)
+        sa.Column('case_id', sa.Integer(), nullable=False, index=True, primary_key=True),
+        sa.Column('user_id', sa.String(), nullable=False, index=True, primary_key=True)
     )
 
     op.create_table(
         'costs',
-        sa.Column('tenant_id', sa.Integer(), sa.ForeignKey('tenants.id', ondelete="CASCADE"), nullable=False, index=True),
-        sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-        sa.Column('case_id', sa.Integer(), sa.ForeignKey('cases.id', ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column('id', sa.Integer(), nullable=False, primary_key=True, autoincrement=True),
+        sa.Column('case_id', sa.Integer(), nullable=False, index=True, primary_key=True),
         sa.Column('value', sa.Integer(), nullable=False),
         sa.Column('unit', sa.String(), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
@@ -97,6 +95,14 @@ def upgrade() -> None:
         for x in items
     ]
     session.bulk_save_objects(objects)
+
+    # Citus data
+    session.execute(text("CREATE EXTENSION IF NOT EXISTS citus;"))
+    session.execute(text("SELECT create_reference_table('tenants');"))
+    session.execute(text("SELECT create_reference_table('filter_list');"))
+    session.execute(text("SELECT create_distributed_table('cases', 'id');"))
+    session.execute(text("SELECT create_distributed_table('case_members', 'case_id');"))
+    session.execute(text("SELECT create_distributed_table('costs', 'case_id');"))
     session.commit()
 
 

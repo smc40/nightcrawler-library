@@ -42,8 +42,8 @@ class FilterList(Base):
 class Case(Base):
     __tablename__ = 'cases'
 
-    tenant_id = Column(Integer, ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
     id = Column(Integer, primary_key=True, index=True, nullable=False)
+    tenant_id = Column(Integer, nullable=False, index=True)
     name = Column(String, nullable=False)
     notifications_enabled = Column(Boolean, nullable=False, default=False)
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
@@ -54,9 +54,8 @@ class Case(Base):
 class CaseMember(Base):
     __tablename__ = 'case_members'
 
-    tenant_id = Column(Integer, ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
-    case_id = Column(Integer, ForeignKey('cases.id', ondelete='CASCADE'), index=True)
-    user_id = Column(String, primary_key=True)
+    case_id = Column(Integer, index=True, nullable=False, primary_key=True)
+    user_id = Column(String, index=True, nullable=False, primary_key=True)
 
 
 class Cost(Base):
@@ -66,9 +65,8 @@ class Cost(Base):
         UNIT = "unit"
         ZYTE = "zyte"
 
-    tenant_id = Column(Integer, ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
-    id = Column(Integer, primary_key=True, nullable=False)
-    case_id: int = Column(Integer, ForeignKey('cases.id', ondelete='CASCADE'), nullable=False, index=True)
+    id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
+    case_id: int = Column(Integer, primary_key=True, nullable=False, index=True)
     value = Column(Integer, nullable=False)
     unit = Column(String, nullable=False)
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
