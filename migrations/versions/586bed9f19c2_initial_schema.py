@@ -9,8 +9,8 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import orm, text
-from libnightcrawler.db.schema import FilterList, Tenant
+from sqlalchemy import orm, text, func
+from libnightcrawler.db.schema import FilterList, Organization, Keyword, User
 
 
 # revision identifiers, used by Alembic.
@@ -25,16 +25,35 @@ def upgrade() -> None:
     session = orm.Session(bind=bind)
 
     op.create_table(
-        'tenants',
+        'audit_logs',
+        sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column('user_id', sa.String(), nullable=False, index=True),
+        sa.Column('operation', sa.String(), nullable=False, index=True),
+        sa.Column('payload', sa.JSON(), nullable=False),
+    )
+
+    op.create_table(
+        'organizations',
         sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
         sa.Column('name', sa.String(), nullable=False, index=True),
         sa.Column('countries', sa.String(), nullable=False),
         sa.Column('languages', sa.String(), nullable=False),
+        sa.Column('unit', sa.String(), nullable=False),
+    )
+
+    op.create_table(
+        'users',
+        sa.Column('id', sa.String(), nullable=False, primary_key=True),
+        sa.Column('org_id', sa.Integer(), sa.ForeignKey('organizations.id', ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column('name', sa.String(), nullable=False),
+        sa.Column('mail', sa.String(), nullable=False),
+        sa.Column('role', sa.Enum(User.Roles), nullable=False),
     )
 
     op.create_table(
         'filter_list',
-        sa.Column('tenant_id', sa.Integer(), sa.ForeignKey('tenants.id', ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column('org_id', sa.Integer(), sa.ForeignKey('organizations.id', ondelete="CASCADE"), nullable=False, index=True),
         sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
         sa.Column('type', sa.Enum(FilterList.FilterListType), nullable=False),
         sa.Column('name', sa.String(), nullable=False),
@@ -49,7 +68,7 @@ def upgrade() -> None:
 
     op.create_table(
         'cases',
-        sa.Column('tenant_id', sa.Integer(), nullable=False, index=True),
+        sa.Column('org_id', sa.Integer(), nullable=False, index=True),
         sa.Column('id', sa.Integer(), nullable=False, primary_key=True, index=True),
         sa.Column('name', sa.String(), nullable=False),
         sa.Column('notifications_enabled', sa.Boolean(), nullable=False, default='False'),
@@ -73,11 +92,52 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
 
+    op.create_table(
+        'keywords',
+        sa.Column('id', sa.Integer(), nullable=False, primary_key=True, autoincrement=True, index=True),
+        sa.Column('case_id', sa.Integer(), nullable=False, index=True, primary_key=True),
+        sa.Column('notifications_enabled', sa.Boolean(), nullable=False, default='False'),
+        sa.Column('query', sa.String(), nullable=False),
+        sa.Column('type', sa.Enum(Keyword.KeywordType), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column('description', sa.String(), nullable=True),
+        sa.Column('crawl_state', sa.Enum(Keyword.CrawlState), nullable=False),
+    )
 
-    # Insert first tenants
+    op.create_index(index_name='uq_keywords_query_type_case_id', table_name='keywords',
+                    columns=['query', 'type', 'case_id'], unique=True)
+
+    op.create_table(
+        'offers',
+        sa.Column('id', sa.Integer(), nullable=False, primary_key=True, autoincrement=True, index=True),
+        sa.Column('case_id', sa.Integer(), nullable=False, index=True, primary_key=True),
+        sa.Column('url', sa.String(), nullable=False),
+        sa.Column('text', sa.String(), nullable=False),
+        sa.Column('relevant', sa.Boolean(), nullable=False),
+        sa.Column('root', sa.String(), nullable=False),
+        sa.Column('uid', sa.String(), nullable=False),
+        sa.Column('platform', sa.String(), nullable=False),
+        sa.Column('keyword_id', sa.Integer(), nullable=False, index=True),
+        sa.Column('price', sa.String(), nullable=True),
+        sa.Column('source', sa.String(), nullable=False),
+        sa.Column('title', sa.String(), nullable=False),
+        sa.Column('images', sa.JSON(), nullable=True),
+        sa.Column('language', sa.String(), nullable=False),
+        sa.Column('score', sa.Numeric(), nullable=False),
+        sa.Column('crawled_at', sa.DateTime(timezone=True), nullable=False, server_default=func.now())
+    )
+
+    op.create_table('overall_bookmark',
+        sa.Column('user_id', sa.String(), primary_key=True),
+        sa.Column('offer_id', sa.Integer(), nullable=False, primary_key=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=func.now())
+    )
+
+    # Insert first organizations
     tenants = [
-        Tenant(id=1, name="Swissmedic", countries="ch", languages="de;fr;it;en"),
-        Tenant(id=2, name="Ages", countries="at", languages="de;en")
+        Organization(id=1, name="Swissmedic", countries="ch", languages="de;fr;it;en", unit="mep"),
+        Organization(id=2, name="Swissmedic", countries="ch", languages="de;fr;it;en", unit="md"),
+        Organization(id=3, name="Ages", countries="at", languages="de;en", unit="chocolatine")
     ]
     session.bulk_save_objects(tenants)
 
@@ -86,23 +146,25 @@ def upgrade() -> None:
 
     objects = [
         FilterList(
-            tenant_id=1,
+            org_id=y,
             name=x,
             url=x,
             type=FilterList.FilterListType.BLACKLIST,
             status=FilterList.FilterListStatus.ACTIVE,
             created_by='Auto')
-        for x in items
+        for x in items for y in [1, 2]
     ]
     session.bulk_save_objects(objects)
 
     # Citus data
     session.execute(text("CREATE EXTENSION IF NOT EXISTS citus;"))
-    session.execute(text("SELECT create_reference_table('tenants');"))
+    session.execute(text("SELECT create_reference_table('organizations');"))
     session.execute(text("SELECT create_reference_table('filter_list');"))
     session.execute(text("SELECT create_distributed_table('cases', 'id');"))
     session.execute(text("SELECT create_distributed_table('case_members', 'case_id');"))
+    session.execute(text("SELECT create_distributed_table('keywords', 'case_id');"))
     session.execute(text("SELECT create_distributed_table('costs', 'case_id');"))
+    session.execute(text("SELECT create_distributed_table('offers', 'case_id');"))
     session.commit()
 
 

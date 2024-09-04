@@ -29,8 +29,8 @@ class Context:
         logging.warning("Storing content to %s", path)
         # TODO
 
-    def store_object(self, tenant_id: str, path: str, content: dict):
-        return self._store_object(f"{tenant_id}/{path}", content)
+    def store_object(self, org_id: str, path: str, content: dict):
+        return self._store_object(f"{org_id}/{path}", content)
 
     # -------------------------------------
     # Cost management

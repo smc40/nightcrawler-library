@@ -13,11 +13,11 @@ def db_uri(context):
 
 
 @pytest.fixture(scope='session')
-def tenant_id():
+def org_id():
     return 1
 
 @pytest.fixture(scope='session')
-def second_tenant_id():
+def second_org_id():
     return 2
 
 @pytest.fixture(scope='session')
