@@ -39,6 +39,7 @@ def upgrade() -> None:
         sa.Column('name', sa.String(), nullable=False, index=True),
         sa.Column('countries', sa.String(), nullable=False),
         sa.Column('languages', sa.String(), nullable=False),
+        sa.Column('currencies', sa.String(), nullable=False),
         sa.Column('unit', sa.String(), nullable=False),
     )
 
@@ -113,7 +114,7 @@ def upgrade() -> None:
         sa.Column('case_id', sa.Integer(), nullable=False, index=True, primary_key=True),
         sa.Column('url', sa.String(), nullable=False),
         sa.Column('text', sa.String(), nullable=False),
-        sa.Column('relevant', sa.Boolean(), nullable=False),
+        sa.Column('relevant', sa.Boolean(), nullable=False, default=True),
         sa.Column('root', sa.String(), nullable=False),
         sa.Column('uid', sa.String(), nullable=False),
         sa.Column('platform', sa.String(), nullable=False),
@@ -135,9 +136,9 @@ def upgrade() -> None:
 
     # Insert first organizations
     tenants = [
-        Organization(id=1, name="Swissmedic", countries="ch", languages="de;fr;it;en", unit="mep"),
-        Organization(id=2, name="Swissmedic", countries="ch", languages="de;fr;it;en", unit="md"),
-        Organization(id=3, name="Ages", countries="at", languages="de;en", unit="chocolatine")
+        Organization(id=1, name="Swissmedic MEP", countries="ch", currencies="CHF", languages="de;fr;it;en", unit="mep"),
+        Organization(id=2, name="Swissmedic AM", countries="ch", currencies="CHF", languages="de;fr;it;en", unit="am"),
+        Organization(id=3, name="Ages", countries="at", currencies="EURO", languages="de;en", unit="chocolatine")
     ]
     session.bulk_save_objects(tenants)
 

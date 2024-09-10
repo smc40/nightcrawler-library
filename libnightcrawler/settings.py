@@ -7,7 +7,7 @@ class SendgridSettings(BaseSettings):
     from_address: str = ""
     frontend_dns_url: str = ""
     email_is_sandbox_mode: bool = False
-    model_config = SettingsConfigDict(env_prefix='nightcrawler_sendgrid_')
+    model_config = SettingsConfigDict(env_prefix="nightcrawler_sendgrid_")
 
 
 class PostgresSettings(BaseSettings):
@@ -16,7 +16,7 @@ class PostgresSettings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 5432
     name: str = "nightcrawler"
-    model_config = SettingsConfigDict(env_prefix='nightcrawler_postgres_')
+    model_config = SettingsConfigDict(env_prefix="nightcrawler_postgres_")
 
     @property
     def connection_string(self):

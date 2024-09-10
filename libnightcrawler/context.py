@@ -1,8 +1,10 @@
 import logging
 from libnightcrawler.settings import Settings
 from libnightcrawler.db.client import DBClient
-from libnightcrawler.db.schema import Cost, COST_UNIT_FACTOR
+import libnightcrawler.db.schema as lds
+import libnightcrawler.objects as lo
 from sqlalchemy import func
+import sqlalchemy as sa
 
 
 class Context:
@@ -13,14 +15,10 @@ class Context:
 
     @property
     def db_client(self):
-        """ Lazy initialization of postgresql client """
+        """Lazy initialization of postgresql client"""
         if self._pg_client is None:
             self._pg_client = DBClient(self.settings.postgres)
         return self._pg_client
-
-    @property
-    def db_session(self):
-        return self.db_client.db_session
 
     # -------------------------------------
     # Object storage interface
@@ -38,19 +36,95 @@ class Context:
     def report_cost(self, case_id, cost, unit):
         logging.warning(f"{case_id}: Adding cost : {cost} {unit}")
         with self.db_client.session_factory() as session:
-            session.add(Cost(
-                case_id=case_id,
-                value=cost,
-                unit=unit))
+            session.add(lds.Cost(case_id=case_id, value=cost, unit=unit))
             session.commit()
 
     def get_current_cost(self, case_id):
         totals = dict()
         # Get sum of costs group by unit
         with self.db_client.session_factory() as session:
-            values = session.query(Cost.unit, func.sum(Cost.value)).where(Cost.case_id == case_id).group_by(Cost.unit).all()
-            for (unit, value) in values:
+            values = (
+                session.query(lds.Cost.unit, func.sum(lds.Cost.value))
+                .where(lds.Cost.case_id == case_id)
+                .group_by(lds.Cost.unit)
+                .all()
+            )
+            for unit, value in values:
                 totals[unit] = totals.get(unit, 0) + value
 
         # Combine different units
-        return sum([v*COST_UNIT_FACTOR[k] for k,v in totals.items()])
+        return sum([v * lds.COST_UNIT_FACTOR[k] for k, v in totals.items()])
+
+    # -------------------------------------
+    # DS pipeline utils
+    # -------------------------------------
+    def get_organization(
+        self, name: str | None = None, index_by_name: bool = True
+    ) -> dict[str, lo.Organization]:
+        with self.db_client.session_factory() as session:
+            orgs = session.query(
+                lds.Organization,
+                sa.func.array_agg(
+                    sa.func.json_build_array(lds.FilterList.url, lds.FilterList.type)
+                ),
+            ).outerjoin(
+                lds.FilterList,
+                lds.FilterList.org_id == lds.Organization.id
+                and lds.FilterList.status == lds.FilterList.FilterListStatus.ACTIVE,
+            )
+            if name:
+                orgs = orgs.where(lds.Organization.name == name)
+            orgs = orgs.group_by(lds.Organization.id).all()
+            if name:
+                assert len(orgs) == 1
+
+            res = dict()
+            for org in orgs:
+                key = org[0].name if index_by_name else org[0].id
+
+                res[key] = lo.Organization(
+                    name=org[0].name,
+                    unit=org[0].unit,
+                    countries=org[0].countries.split(";"),
+                    currencies=org[0].currencies.split(";"),
+                    languages=org[0].languages.split(";"),
+                    blacklist=[
+                        x[0] for x in org[1] if x[1] == lds.FilterList.FilterListType.BLACKLIST.name
+                    ],
+                )
+            return res
+
+    def get_crawl_requests(self) -> list[lo.CrawlRequest]:
+        orgs = self.get_organization(index_by_name=False)
+        with self.db_client.session_factory() as session:
+            cases = (
+                session.query(
+                    lds.Case,
+                    sa.func.array_agg(
+                        sa.func.json_build_array(
+                            lds.Keyword.query, lds.Keyword.type, lds.Keyword.id
+                        )
+                    ),
+                )
+                .join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
+                .where(lds.Case.inactive == False)  # noqa
+                .group_by(lds.Case.id)
+                .all()
+            )
+        return [
+            lo.CrawlRequest(
+                keyword_type=y[1],
+                keyword_value=y[0],
+                organization=orgs[x[0].org_id],
+                keyword_id=y[2],
+            )
+            for x in cases
+            for y in x[1]
+        ]
+
+    def store_results(self, data: list[lo.CrawlResult], replace: bool = False):
+        logging.warning("Storing %d results", len(data))
+        with self.db_client.session_factory() as session:
+            for result in data:
+                session.add(result.offer)
+            session.commit()

@@ -24,9 +24,9 @@ class UtcDateTime(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is not None:
             if not isinstance(value, datetime):
-                raise TypeError('expected datetime.datetime, not ' + repr(value))
+                raise TypeError("expected datetime.datetime, not " + repr(value))
             elif value.tzinfo is None:
-                raise ValueError('naive datetime is disallowed')
+                raise ValueError("naive datetime is disallowed")
             return value.astimezone(timezone.utc)
 
     def process_result_value(self, value, dialect):

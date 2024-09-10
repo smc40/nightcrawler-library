@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
-class DBClient():
+class DBClient:
     def __init__(self, settings):
         logging.warning("Initializing new DB client")
         self.settings = settings
@@ -17,7 +17,7 @@ class DBClient():
             engine = create_engine(self.settings.connection_string)
             self._session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         return self._session_factory
- 
+
     def migrate(self):
         logging.warning("Starting db migration")
         # Call to alembic changes the log level, so we backup and restore it
