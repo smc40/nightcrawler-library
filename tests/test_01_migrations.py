@@ -18,7 +18,7 @@ from libnightcrawler.db.schema import Base
 @pytest.fixture
 def alembic_root() -> str:
     # make sure you run this test from the root directory of the backend-service sub-project
-    return './migrations'
+    return './libnightcrawler/migrations'
 
 
 @pytest.fixture(scope="module")

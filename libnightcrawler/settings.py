@@ -26,3 +26,6 @@ class PostgresSettings(BaseSettings):
 class Settings(BaseSettings):
     postgres: PostgresSettings = Field(default_factory=PostgresSettings)
     sendgrid: SendgridSettings = Field(default_factory=SendgridSettings)
+    use_file_storage: bool = False
+    organizations_path: str = "tests/organizations.json"
+    model_config = SettingsConfigDict(env_prefix="nightcrawler_")
