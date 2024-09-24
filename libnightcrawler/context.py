@@ -2,8 +2,10 @@ import logging
 import json
 from libnightcrawler.settings import Settings
 from libnightcrawler.db.client import DBClient
+from libnightcrawler.blob import BlobClient
 import libnightcrawler.db.schema as lds
 import libnightcrawler.objects as lo
+import libnightcrawler.utils as lu
 from sqlalchemy import func
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
@@ -14,13 +16,21 @@ class Context:
         logging.warning("Initializing new context")
         self.settings = Settings()
         self._pg_client = None
+        self._blob_client = None
 
     @property
-    def db_client(self):
+    def db_client(self) -> DBClient:
         """Lazy initialization of postgresql client"""
         if self._pg_client is None:
             self._pg_client = DBClient(self.settings.postgres)
         return self._pg_client
+
+    @property
+    def blob_client(self) -> BlobClient:
+        """Lazy initialization of blob client"""
+        if self._blob_client is None:
+            self._blob_client = BlobClient(self.settings.blob)
+        return self._blob_client
 
     # -------------------------------------
     # Object storage interface
@@ -35,14 +45,14 @@ class Context:
     # -------------------------------------
     # Cost management
     # -------------------------------------
-    def report_cost(self, case_id, cost, unit):
+    def report_cost(self, case_id: int, cost: int, unit: str):
         logging.warning(f"{case_id}: Adding cost : {cost} {unit}")
         with self.db_client.session_factory() as session:
             session.add(lds.Cost(case_id=case_id, value=cost, unit=unit))
             session.commit()
 
-    def get_current_cost(self, case_id):
-        totals = dict()
+    def get_current_cost(self, case_id: int) -> float:
+        totals = dict[str, int]()
         # Get sum of costs group by unit
         with self.db_client.session_factory() as session:
             values = (
@@ -70,8 +80,10 @@ class Context:
 
             with open(self.settings.organizations_path, "r") as f:
                 data = json.load(f)
-                res = dict()
+                res = dict[str, lo.Organization]()
                 for name, value in data.items():
+                    if name is None:
+                        continue
                     res[name] = lo.Organization(name=name, **value)
                 return res
 
@@ -144,6 +156,15 @@ class Context:
                 values = {
                     x: y for x, y in result.offer.to_dict().items() if x not in ["id", "crawled_at"]
                 }
+                images = []
+                for image_url in result.images:
+                    extension = lu.get_extension(image_url)
+                    content = lu.get_content(image_url)
+                    checksum = lu.checksum(content)
+                    path = f"{result.request.organization.name}/{checksum}.{extension}"
+                    self.blob_client.put_image(path, content)
+                    images.append({"source": image_url, "path": path})
+                values["images"] = images
                 stmt = insert(lds.Offer).values(values)
                 do_update_stmt = stmt.on_conflict_do_update(
                     constraint="uq_offers_url_case_id",

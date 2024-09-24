@@ -29,8 +29,11 @@ class CrawlRequest:
     case_id: int = 0
 
     def new_result(self, **kwargs):
+        images = kwargs.pop("images", None)
         return CrawlResult(
-            request=self, offer=Offer(case_id=self.case_id, keyword_id=self.keyword_id, **kwargs)
+            request=self,
+            offer=Offer(case_id=self.case_id, keyword_id=self.keyword_id, **kwargs),
+            images=(images or []),
         )
 
 
@@ -38,3 +41,4 @@ class CrawlRequest:
 class CrawlResult:
     request: CrawlRequest
     offer: Offer
+    images: list[str]
