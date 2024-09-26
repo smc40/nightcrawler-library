@@ -130,6 +130,7 @@ class Context:
                 keyword_value=y[0],
                 organization=orgs[x[0].org_id],
                 keyword_id=y[2],
+                case_id=x[0].id,
             )
             for x in cases
             for y in x[1]
