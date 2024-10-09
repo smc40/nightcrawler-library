@@ -1,6 +1,6 @@
 import logging
 import alembic.config
-import pkg_resources
+import importlib.resources
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -23,6 +23,6 @@ class DBClient:
         logging.warning("Starting db migration")
         # Call to alembic changes the log level, so we backup and restore it
         previous_level = logging.getLogger().level
-        path = pkg_resources.resource_filename("libnightcrawler", "alembic.ini")
-        alembic.config.main(argv=["--raiseerr", "--config", path, "upgrade", "head"])
+        with importlib.resources.as_file(importlib.resources.files("libnightcrawler").joinpath("alembic.ini")) as path:
+            alembic.config.main(argv=["--raiseerr", "--config", str(path), "upgrade", "head"])
         logging.getLogger().setLevel(previous_level)
