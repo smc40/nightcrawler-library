@@ -6,6 +6,7 @@ import libnightcrawler.db.schema as lds
 import libnightcrawler.objects as lo
 from sqlalchemy import func
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert
 
 
 class Context:
@@ -136,9 +137,17 @@ class Context:
             for y in x[1]
         ]
 
-    def store_results(self, data: list[lo.CrawlResult], replace: bool = False):
+    def store_results(self, data: list[lo.CrawlResult]):
         logging.warning("Storing %d results", len(data))
         with self.db_client.session_factory() as session:
             for result in data:
-                session.add(result.offer)
+                values = {
+                    x: y for x, y in result.offer.to_dict().items() if x not in ["id", "crawled_at"]
+                }
+                stmt = insert(lds.Offer).values(values)
+                do_update_stmt = stmt.on_conflict_do_update(
+                    constraint="uq_offers_url_case_id",
+                    set_={x: getattr(stmt.excluded, x) for x in values},
+                )
+                session.execute(do_update_stmt)
             session.commit()

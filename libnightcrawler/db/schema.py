@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     JSON,
     Numeric,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base
 
@@ -172,6 +173,10 @@ class Offer(Base):
     root = Column(String, nullable=False)
     relevant = Column(Boolean, nullable=False, default=True)
     images = Column(JSON, nullable=True)
+    __table_args__ = (UniqueConstraint("url", "case_id", name="uq_offers_url_case_id"),)
+
+    def to_dict(self):
+        return {field.name: getattr(self, field.name) for field in self.__table__.c}
 
 
 class OverallBookmark(Base):
