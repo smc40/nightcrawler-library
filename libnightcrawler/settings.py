@@ -1,0 +1,31 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
+
+
+class SendgridSettings(BaseSettings):
+    api_key: str = ""
+    from_address: str = ""
+    frontend_dns_url: str = ""
+    email_is_sandbox_mode: bool = False
+    model_config = SettingsConfigDict(env_prefix="nightcrawler_sendgrid_")
+
+
+class PostgresSettings(BaseSettings):
+    user: str = "user"
+    password: str = "secret"
+    host: str = "127.0.0.1"
+    port: int = 5432
+    name: str = "nightcrawler"
+    model_config = SettingsConfigDict(env_prefix="nightcrawler_postgres_")
+
+    @property
+    def connection_string(self):
+        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}?sslmode=prefer"
+
+
+class Settings(BaseSettings):
+    postgres: PostgresSettings = Field(default_factory=PostgresSettings)
+    sendgrid: SendgridSettings = Field(default_factory=SendgridSettings)
+    use_file_storage: bool = True
+    organizations_path: str = "tests/organizations.json"
+    model_config = SettingsConfigDict(env_prefix="nightcrawler_")
