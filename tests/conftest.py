@@ -23,3 +23,7 @@ def second_org_id():
 @pytest.fixture(scope='session')
 def case_id():
     return 4567
+
+@pytest.fixture(scope='session')
+def public_image():
+    return "https://www.swissmedic.ch/swissmedic/fr/_jcr_content/logo/image.imagespooler.png/1672565955358/swissmedic-logo_transp.png"

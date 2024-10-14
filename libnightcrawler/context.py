@@ -149,7 +149,23 @@ class Context:
             for y in x[1]
         ]
 
-    def store_results(self, data: list[lo.CrawlResult]):
+    def set_crawl_pending(self, case_id: int, keyword_id: int):
+        logging.warning("Change crawl state to pending for case %s keyword %s", case_id, keyword_id)
+        with self.db_client.session_factory() as session:
+            stmt = (
+                sa.update(lds.Keyword)
+                .where(lds.Keyword.id == keyword_id)
+                .values(crawl_state=lds.Keyword.CrawlState.PENDING)
+            )
+            session.execute(stmt)
+            session.commit()
+
+    def store_results(
+        self,
+        data: list[lo.CrawlResult],
+        keyword_id: int | None = None,
+        status: lds.Keyword.CrawlState = lds.Keyword.CrawlState.SUCCEEDED,
+    ):
         logging.warning("Storing %d results", len(data))
         with self.db_client.session_factory() as session:
             for result in data:
@@ -171,4 +187,11 @@ class Context:
                     set_={x: getattr(stmt.excluded, x) for x in values},
                 )
                 session.execute(do_update_stmt)
+            if keyword_id:
+                statement = (
+                    sa.update(lds.Keyword)
+                    .where(lds.Keyword.id == keyword_id)
+                    .values(crawl_state=status)
+                )
+                session.execute(statement)
             session.commit()
