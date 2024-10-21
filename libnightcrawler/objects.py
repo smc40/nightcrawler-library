@@ -27,6 +27,9 @@ class CrawlRequest:
     organization: Organization
     keyword_id: int = 0
     case_id: int = 0
+    number_of_results: int = 50
+    page_type_detection_method: str = "zyte"
+    enrich_keyword: bool = False
 
     def new_result(self, **kwargs):
         images = kwargs.pop("images", None)
