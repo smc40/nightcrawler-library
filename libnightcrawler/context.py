@@ -120,7 +120,7 @@ class Context:
                 )
             return res
 
-    def get_crawl_requests(self) -> list[lo.CrawlRequest]:
+    def get_crawl_requests(self, case_id: int =0) -> list[lo.CrawlRequest]:
         orgs = self.get_organization(index_by_name=False)
         with self.db_client.session_factory() as session:
             cases = (
@@ -133,10 +133,12 @@ class Context:
                     ),
                 )
                 .join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
-                .where(lds.Case.inactive == False)  # noqa
-                .group_by(lds.Case.id)
-                .all()
             )
+            if case_id:
+                cases = cases.where(lds.Case.id == case_id)
+            else:
+                cases = cases.where(lds.Case.inactive == False)  # noqa
+            cases = cases.group_by(lds.Case.id).all()
         return [
             lo.CrawlRequest(
                 keyword_type=y[1],

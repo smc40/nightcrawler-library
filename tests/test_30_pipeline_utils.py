@@ -24,9 +24,12 @@ def gen_data(to_be_processed, suffix, images=None):
 
 
 
-def test_pipeline_utils(context, public_image):
+def test_pipeline_utils(context, public_image, case_id):
     to_be_processed = context.get_crawl_requests()
     assert len(to_be_processed) == 2
+
+    # Check case_id filtering
+    assert len( context.get_crawl_requests(case_id=case_id+1)) == 1
 
     # Clear offers table
     session = context.db_client.session_factory()
