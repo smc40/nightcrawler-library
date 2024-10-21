@@ -12,6 +12,7 @@ from sqlalchemy import (
     JSON,
     Numeric,
     UniqueConstraint,
+    Date,
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 
@@ -101,6 +102,9 @@ class Case(Base):
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
     inactive = Column(Boolean, nullable=False, default=False)
     inactive_at = Column(UtcDateTime, nullable=True)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    repeat = Column(String, nullable=False, default="daily")
 
 
 class CaseMember(Base):

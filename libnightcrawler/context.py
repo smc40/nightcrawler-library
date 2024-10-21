@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 import json
 from libnightcrawler.settings import Settings
@@ -120,24 +121,25 @@ class Context:
                 )
             return res
 
-    def get_crawl_requests(self, case_id: int =0) -> list[lo.CrawlRequest]:
+    def get_crawl_requests(self, case_id: int = 0) -> list[lo.CrawlRequest]:
         orgs = self.get_organization(index_by_name=False)
         with self.db_client.session_factory() as session:
-            cases = (
-                session.query(
-                    lds.Case,
-                    sa.func.array_agg(
-                        sa.func.json_build_array(
-                            lds.Keyword.query, lds.Keyword.type, lds.Keyword.id
-                        )
-                    ),
-                )
-                .join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
-            )
+            cases = session.query(
+                lds.Case,
+                sa.func.array_agg(
+                    sa.func.json_build_array(lds.Keyword.query, lds.Keyword.type, lds.Keyword.id)
+                ),
+            ).join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
             if case_id:
                 cases = cases.where(lds.Case.id == case_id)
             else:
-                cases = cases.where(lds.Case.inactive == False)  # noqa
+                today = datetime.now().date()
+                cases = cases.where(
+                    sa.and_(
+                        lds.Case.inactive == False,  # noqa
+                        sa.or_(lds.Case.end_date == None, lds.Case.end_date >= today),  # noqa
+                    )
+                )
             cases = cases.group_by(lds.Case.id).all()
         return [
             lo.CrawlRequest(

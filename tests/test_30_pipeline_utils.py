@@ -1,5 +1,7 @@
+from datetime import datetime, timedelta
 import requests
-from libnightcrawler.db.schema import Offer, Keyword
+import sqlalchemy as sa
+from libnightcrawler.db.schema import Offer, Keyword, Case
 
 
 def gen_data(to_be_processed, suffix, images=None):
@@ -66,3 +68,24 @@ def test_pipeline_utils(context, public_image, case_id):
     keyword = session.query(Keyword).where(Keyword.id == request.keyword_id).one()
     assert keyword.crawl_state == Keyword.CrawlState.FAILED
     assert keyword.error == error
+
+def _change_dates(session, case_id, start, end):
+    stmt = (
+                sa.update(Case)
+                .where(Case.id == case_id)
+                .values(start_date=start, end_date=end)
+            )
+    session.execute(stmt)
+    session.commit()
+
+def test_case_expiration(context, public_image, case_id):
+    assert len(context.get_crawl_requests()) == 2
+
+    session = context.db_client.session_factory()
+    today = datetime.now().date()
+    _change_dates(session, case_id, today, today - timedelta(days=1))
+
+    assert len(context.get_crawl_requests()) == 0
+
+    _change_dates(session, case_id, today, today)
+    assert len(context.get_crawl_requests()) == 2

@@ -30,8 +30,8 @@ class DBClient:
                 alembic.config.main(argv=["--raiseerr", "--config", str(path), "upgrade", "head"])
             except Exception as e:
                 if self.settings.migration_failure_allowed:
-                     logging.warning("Migration failed but allowed to fail in settings")
-                     logging.info(e, exc_info=True)
+                    logging.warning("Migration failed but allowed to fail in settings")
+                    logging.info(e, exc_info=True)
                 else:
                     raise e
         logging.getLogger().setLevel(previous_level)
