@@ -152,6 +152,7 @@ class Keyword(Base):
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
     description = Column(String, nullable=True)
     crawl_state = mapped_column(Enum(CrawlState), nullable=False)
+    error = Column(String, nullable=True)
 
     Index("uq_keywords_query_type_case_id", query, type, case_id, unique=True)
 

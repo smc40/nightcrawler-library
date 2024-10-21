@@ -160,6 +160,17 @@ class Context:
             session.execute(stmt)
             session.commit()
 
+    def set_crawl_error(self, case_id: int, keyword_id: int, error: str):
+        logging.error("Crawl error for case %s keyword %s : %s", case_id, keyword_id, error)
+        with self.db_client.session_factory() as session:
+            stmt = (
+                sa.update(lds.Keyword)
+                .where(lds.Keyword.id == keyword_id)
+                .values(crawl_state=lds.Keyword.CrawlState.FAILED, error=error)
+            )
+            session.execute(stmt)
+            session.commit()
+
     def store_results(
         self,
         data: list[lo.CrawlResult],

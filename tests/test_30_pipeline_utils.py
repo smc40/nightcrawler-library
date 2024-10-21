@@ -56,3 +56,10 @@ def test_pipeline_utils(context, public_image):
     for config in images_config:
         assert config["source"] == public_image
         assert context.blob_client.get_image(config["path"]) == requests.get(public_image).content
+
+    request = to_be_processed[0]
+    error = "some string"
+    context.set_crawl_error(request.case_id, request.keyword_id, error)
+    keyword = session.query(Keyword).where(Keyword.id == request.keyword_id).one()
+    assert keyword.crawl_state == Keyword.CrawlState.FAILED
+    assert keyword.error == error
