@@ -17,7 +17,7 @@ def test_blob(context):
     path = "banana"
 
     # Add one image
-    client.put_image(path, "whatever")
+    client.put_image(path, "whatever", "stg")
 
     # Check added
     image_container_client = service_client.get_container_client(client.settings.image_container)

@@ -191,13 +191,14 @@ class Context:
                 for image_url in result.images:
                     extension = lu.get_extension(image_url)
                     try:
-                        content = lu.get_content(image_url)
+                        content, content_type = lu.get_content(image_url)
+                        logging.warning(content_type)
                     except Exception as e:
                         logging.error("failed to download image from %s: %s", image_url, str(e))
                         continue
                     checksum = lu.checksum(content)
                     path = f"{result.request.organization.name}/{checksum}.{extension}"
-                    self.blob_client.put_image(path, content)
+                    self.blob_client.put_image(path, content, content_type)
                     images.append({"source": image_url, "path": path})
                 values["images"] = images
                 stmt = insert(lds.Offer).values(values)
