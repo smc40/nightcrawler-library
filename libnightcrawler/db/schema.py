@@ -104,7 +104,7 @@ class Case(Base):
     inactive_at = Column(UtcDateTime, nullable=True)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
-    repeat = Column(String, nullable=False, default="daily")
+    repeat = Column(String, nullable=False, default="daily", server_default="daily")
 
 
 class CaseMember(Base):

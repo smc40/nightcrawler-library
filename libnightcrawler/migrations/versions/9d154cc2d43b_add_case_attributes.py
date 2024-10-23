@@ -22,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column("cases", sa.Column("start_date", sa.Date(), nullable=True))
     op.add_column("cases", sa.Column("end_date", sa.Date(), nullable=True))
-    op.add_column("cases", sa.Column("repeat", sa.String(), nullable=False, default="daily"))
+    op.add_column("cases", sa.Column("repeat", sa.String(), nullable=False, default="daily", server_default="daily"))
     pass
 
 
