@@ -9,7 +9,8 @@ def get_extension(url: str) -> str:
 
 @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=5)
 def get_content(url: str) -> bytes:
-    response = requests.get(url)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'}
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.content
 

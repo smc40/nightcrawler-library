@@ -190,7 +190,11 @@ class Context:
                 images = []
                 for image_url in result.images:
                     extension = lu.get_extension(image_url)
-                    content = lu.get_content(image_url)
+                    try:
+                        content = lu.get_content(image_url)
+                    except Exception as e:
+                        logging.error("failed to download image from %s: %s", image_url, str(e))
+                        continue
                     checksum = lu.checksum(content)
                     path = f"{result.request.organization.name}/{checksum}.{extension}"
                     self.blob_client.put_image(path, content)
