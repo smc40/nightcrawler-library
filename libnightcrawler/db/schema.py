@@ -12,12 +12,15 @@ from sqlalchemy import (
     JSON,
     Numeric,
     UniqueConstraint,
+    Date,
 )
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase, mapped_column
 
 from libnightcrawler.db.utc_date_time import UtcDateTime
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 class AuditLog(Base):
@@ -57,7 +60,7 @@ class User(Base):
         nullable=False,
         index=True,
     )
-    role = Column(Enum(Roles), nullable=False)
+    role = mapped_column(Enum(Roles), nullable=False)
 
 
 class FilterList(Base):
@@ -78,10 +81,10 @@ class FilterList(Base):
         index=True,
     )
     id = Column(Integer, nullable=False, primary_key=True, autoincrement=True)
-    type = Column(Enum(FilterListType), nullable=False)
+    type = mapped_column(Enum(FilterListType), nullable=False)
     name = Column(String, nullable=False)
     url = Column(String, nullable=False)
-    status = Column(Enum(FilterListStatus), nullable=False)
+    status = mapped_column(Enum(FilterListStatus), nullable=False)
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
     updated_at = Column(UtcDateTime, nullable=False, server_default=func.now())
     deleted_at = Column(UtcDateTime, nullable=True)
@@ -99,6 +102,9 @@ class Case(Base):
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
     inactive = Column(Boolean, nullable=False, default=False)
     inactive_at = Column(UtcDateTime, nullable=True)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    repeat = Column(String, nullable=False, default="daily", server_default="daily")
 
 
 class CaseMember(Base):
@@ -116,7 +122,7 @@ class Cost(Base):
         ZYTE = "zyte"
 
     id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
-    case_id: int = Column(Integer, primary_key=True, nullable=False, index=True)
+    case_id = Column(Integer, primary_key=True, nullable=False, index=True)
     value = Column(Integer, nullable=False)
     unit = Column(String, nullable=False)
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
@@ -143,13 +149,14 @@ class Keyword(Base):
         TIMEOUT = enum.auto()
 
     id = Column(Integer, primary_key=True, index=True, nullable=False, autoincrement=True)
-    case_id: int = Column(Integer, nullable=False, primary_key=True, index=True)
+    case_id = Column(Integer, nullable=False, primary_key=True, index=True)
     notifications_enabled = Column(Boolean, nullable=False, default=False)
     query = Column(String, nullable=False)
-    type = Column(Enum(KeywordType), nullable=False)
+    type = mapped_column(Enum(KeywordType), nullable=False)
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
     description = Column(String, nullable=True)
-    crawl_state = Column(Enum(CrawlState), nullable=False)
+    crawl_state = mapped_column(Enum(CrawlState), nullable=False)
+    error = Column(String, nullable=True)
 
     Index("uq_keywords_query_type_case_id", query, type, case_id, unique=True)
 
@@ -158,7 +165,7 @@ class Offer(Base):
     __tablename__ = "offers"
 
     id = Column(Integer, primary_key=True, index=True, nullable=False, autoincrement=True)
-    case_id: int = Column(Integer, nullable=False, primary_key=True, index=True)
+    case_id = Column(Integer, nullable=False, primary_key=True, index=True)
     url = Column(String, nullable=False)
     title = Column(String, nullable=False)
     text = Column(String, nullable=False)

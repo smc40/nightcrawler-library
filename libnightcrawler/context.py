@@ -1,9 +1,12 @@
+from datetime import datetime
 import logging
 import json
 from libnightcrawler.settings import Settings
 from libnightcrawler.db.client import DBClient
+from libnightcrawler.blob import BlobClient
 import libnightcrawler.db.schema as lds
 import libnightcrawler.objects as lo
+import libnightcrawler.utils as lu
 from sqlalchemy import func
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
@@ -14,13 +17,21 @@ class Context:
         logging.warning("Initializing new context")
         self.settings = Settings()
         self._pg_client = None
+        self._blob_client = None
 
     @property
-    def db_client(self):
+    def db_client(self) -> DBClient:
         """Lazy initialization of postgresql client"""
         if self._pg_client is None:
             self._pg_client = DBClient(self.settings.postgres)
         return self._pg_client
+
+    @property
+    def blob_client(self) -> BlobClient:
+        """Lazy initialization of blob client"""
+        if self._blob_client is None:
+            self._blob_client = BlobClient(self.settings.blob)
+        return self._blob_client
 
     # -------------------------------------
     # Object storage interface
@@ -35,14 +46,14 @@ class Context:
     # -------------------------------------
     # Cost management
     # -------------------------------------
-    def report_cost(self, case_id, cost, unit):
+    def report_cost(self, case_id: int, cost: int, unit: str):
         logging.warning(f"{case_id}: Adding cost : {cost} {unit}")
         with self.db_client.session_factory() as session:
             session.add(lds.Cost(case_id=case_id, value=cost, unit=unit))
             session.commit()
 
-    def get_current_cost(self, case_id):
-        totals = dict()
+    def get_current_cost(self, case_id: int) -> float:
+        totals = dict[str, int]()
         # Get sum of costs group by unit
         with self.db_client.session_factory() as session:
             values = (
@@ -70,8 +81,10 @@ class Context:
 
             with open(self.settings.organizations_path, "r") as f:
                 data = json.load(f)
-                res = dict()
+                res = dict[str, lo.Organization]()
                 for name, value in data.items():
+                    if name is None:
+                        continue
                     res[name] = lo.Organization(name=name, **value)
                 return res
 
@@ -108,23 +121,26 @@ class Context:
                 )
             return res
 
-    def get_crawl_requests(self) -> list[lo.CrawlRequest]:
+    def get_crawl_requests(self, case_id: int = 0) -> list[lo.CrawlRequest]:
         orgs = self.get_organization(index_by_name=False)
         with self.db_client.session_factory() as session:
-            cases = (
-                session.query(
-                    lds.Case,
-                    sa.func.array_agg(
-                        sa.func.json_build_array(
-                            lds.Keyword.query, lds.Keyword.type, lds.Keyword.id
-                        )
-                    ),
+            cases = session.query(
+                lds.Case,
+                sa.func.array_agg(
+                    sa.func.json_build_array(lds.Keyword.query, lds.Keyword.type, lds.Keyword.id)
+                ),
+            ).join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
+            if case_id:
+                cases = cases.where(lds.Case.id == case_id)
+            else:
+                today = datetime.now().date()
+                cases = cases.where(
+                    sa.and_(
+                        lds.Case.inactive == False,  # noqa
+                        sa.or_(lds.Case.end_date == None, lds.Case.end_date >= today),  # noqa
+                    )
                 )
-                .join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
-                .where(lds.Case.inactive == False)  # noqa
-                .group_by(lds.Case.id)
-                .all()
-            )
+            cases = cases.group_by(lds.Case.id).all()
         return [
             lo.CrawlRequest(
                 keyword_type=y[1],
@@ -137,17 +153,64 @@ class Context:
             for y in x[1]
         ]
 
-    def store_results(self, data: list[lo.CrawlResult]):
+    def set_crawl_pending(self, case_id: int, keyword_id: int):
+        logging.warning("Change crawl state to pending for case %s keyword %s", case_id, keyword_id)
+        with self.db_client.session_factory() as session:
+            stmt = (
+                sa.update(lds.Keyword)
+                .where(lds.Keyword.id == keyword_id)
+                .values(crawl_state=lds.Keyword.CrawlState.PENDING)
+            )
+            session.execute(stmt)
+            session.commit()
+
+    def set_crawl_error(self, case_id: int, keyword_id: int, error: str):
+        logging.error("Crawl error for case %s keyword %s : %s", case_id, keyword_id, error)
+        with self.db_client.session_factory() as session:
+            stmt = (
+                sa.update(lds.Keyword)
+                .where(lds.Keyword.id == keyword_id)
+                .values(crawl_state=lds.Keyword.CrawlState.FAILED, error=error)
+            )
+            session.execute(stmt)
+            session.commit()
+
+    def store_results(
+        self,
+        data: list[lo.CrawlResult],
+        keyword_id: int | None = None,
+        status: lds.Keyword.CrawlState = lds.Keyword.CrawlState.SUCCEEDED,
+    ):
         logging.warning("Storing %d results", len(data))
         with self.db_client.session_factory() as session:
             for result in data:
                 values = {
                     x: y for x, y in result.offer.to_dict().items() if x not in ["id", "crawled_at"]
                 }
+                images = []
+                for image_url in result.images:
+                    try:
+                        content, content_type = lu.get_content(image_url)
+                        logging.warning(content_type)
+                    except Exception as e:
+                        logging.error("failed to download image from %s: %s", image_url, str(e))
+                        continue
+                    checksum = lu.checksum(content)
+                    path = f"{result.request.organization.name}/{checksum}"
+                    self.blob_client.put_image(path, content, content_type)
+                    images.append({"source": image_url, "path": path})
+                values["images"] = images
                 stmt = insert(lds.Offer).values(values)
                 do_update_stmt = stmt.on_conflict_do_update(
                     constraint="uq_offers_url_case_id",
                     set_={x: getattr(stmt.excluded, x) for x in values},
                 )
                 session.execute(do_update_stmt)
+            if keyword_id:
+                statement = (
+                    sa.update(lds.Keyword)
+                    .where(lds.Keyword.id == keyword_id)
+                    .values(crawl_state=status)
+                )
+                session.execute(statement)
             session.commit()

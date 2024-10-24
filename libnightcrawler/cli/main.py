@@ -5,8 +5,9 @@ import os
 import sys
 
 import libnightcrawler.cli.cases as cases
+import libnightcrawler.cli.blob as blob
 
-MODULES = [cases]
+MODULES = [cases, blob]
 
 
 def parse_args(args_):
