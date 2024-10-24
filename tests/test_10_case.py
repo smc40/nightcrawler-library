@@ -1,15 +1,18 @@
+from datetime import datetime, timedelta
+
 from libnightcrawler.db.schema import Case, Keyword
 
 
 def test_case(context, org_id, case_id):
     session = context.db_client.session_factory()
+    today = datetime.now().date()
     
     # Clear previous state
     session.query(Case).delete()
     session.query(Keyword).delete()
 
     # Add 1 active and 1 inactive case
-    session.add(Case(org_id=org_id, id=case_id, name="test"))
+    session.add(Case(org_id=org_id, id=case_id, name="test", start_date=today, end_date=today+timedelta(days=3)))
     session.add(Case(org_id=org_id, id=case_id + 1, name="test2", inactive=True))
 
     # Add Keywords to active case

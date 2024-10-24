@@ -26,7 +26,17 @@ jobs:
         ports:
           - 5432:5432
 
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+
     steps:
+      - name: Create storage containers
+        run: |
+          for blob in images processing public;do docker run --rm --network host mcr.microsoft.com/azure-cli az storage container create -n ${blob} --connection-string "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;";done;
       - uses: actions/checkout@v4
       - name: Setup Python # Set Python version
         uses: actions/setup-python@v5
@@ -42,5 +52,7 @@ jobs:
           poetry install
       - name: Lint
         run: ruff check --output-format=github .
+      - name: Typing
+        run: python -m mypy --ignore-missing-imports  libnightcrawler tests
       - name: Test
         run: pytest --junitxml=junit/test-results.xml --cov=libnightcrawler --cov-report=xml --cov-report=html
