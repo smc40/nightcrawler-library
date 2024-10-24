@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 import json
 from libnightcrawler.settings import Settings
@@ -120,23 +121,26 @@ class Context:
                 )
             return res
 
-    def get_crawl_requests(self) -> list[lo.CrawlRequest]:
+    def get_crawl_requests(self, case_id: int = 0) -> list[lo.CrawlRequest]:
         orgs = self.get_organization(index_by_name=False)
         with self.db_client.session_factory() as session:
-            cases = (
-                session.query(
-                    lds.Case,
-                    sa.func.array_agg(
-                        sa.func.json_build_array(
-                            lds.Keyword.query, lds.Keyword.type, lds.Keyword.id
-                        )
-                    ),
+            cases = session.query(
+                lds.Case,
+                sa.func.array_agg(
+                    sa.func.json_build_array(lds.Keyword.query, lds.Keyword.type, lds.Keyword.id)
+                ),
+            ).join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
+            if case_id:
+                cases = cases.where(lds.Case.id == case_id)
+            else:
+                today = datetime.now().date()
+                cases = cases.where(
+                    sa.and_(
+                        lds.Case.inactive == False,  # noqa
+                        sa.or_(lds.Case.end_date == None, lds.Case.end_date >= today),  # noqa
+                    )
                 )
-                .join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
-                .where(lds.Case.inactive == False)  # noqa
-                .group_by(lds.Case.id)
-                .all()
-            )
+            cases = cases.group_by(lds.Case.id).all()
         return [
             lo.CrawlRequest(
                 keyword_type=y[1],
@@ -160,6 +164,17 @@ class Context:
             session.execute(stmt)
             session.commit()
 
+    def set_crawl_error(self, case_id: int, keyword_id: int, error: str):
+        logging.error("Crawl error for case %s keyword %s : %s", case_id, keyword_id, error)
+        with self.db_client.session_factory() as session:
+            stmt = (
+                sa.update(lds.Keyword)
+                .where(lds.Keyword.id == keyword_id)
+                .values(crawl_state=lds.Keyword.CrawlState.FAILED, error=error)
+            )
+            session.execute(stmt)
+            session.commit()
+
     def store_results(
         self,
         data: list[lo.CrawlResult],
@@ -174,11 +189,15 @@ class Context:
                 }
                 images = []
                 for image_url in result.images:
-                    extension = lu.get_extension(image_url)
-                    content = lu.get_content(image_url)
+                    try:
+                        content, content_type = lu.get_content(image_url)
+                        logging.warning(content_type)
+                    except Exception as e:
+                        logging.error("failed to download image from %s: %s", image_url, str(e))
+                        continue
                     checksum = lu.checksum(content)
-                    path = f"{result.request.organization.name}/{checksum}.{extension}"
-                    self.blob_client.put_image(path, content)
+                    path = f"{result.request.organization.name}/{checksum}"
+                    self.blob_client.put_image(path, content, content_type)
                     images.append({"source": image_url, "path": path})
                 values["images"] = images
                 stmt = insert(lds.Offer).values(values)

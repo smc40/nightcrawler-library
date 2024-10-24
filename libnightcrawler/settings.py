@@ -16,6 +16,7 @@ class PostgresSettings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 5432
     name: str = "nightcrawler"
+    migration_failure_allowed: bool = False
     model_config = SettingsConfigDict(env_prefix="nightcrawler_postgres_")
 
     @property

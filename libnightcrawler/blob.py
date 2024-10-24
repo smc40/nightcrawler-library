@@ -1,6 +1,6 @@
 import json
 import logging
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContentSettings
 from azure.identity import DefaultAzureCredential
 
 
@@ -22,10 +22,12 @@ class BlobClient:
             )
         return self._service_client
 
-    def _put_object(self, container: str, path: str, image: bytes | str):
+    def _put_object(self, container: str, path: str, image: bytes | str, cs: ContentSettings | None = None):
         logging.info("Puting object to container: %s", container)
         client = self.service_client.get_blob_client(container=container, blob=path)
-        return client.upload_blob(image, overwrite=True)
+        if cs is None:
+            cs = ContentSettings()
+        return client.upload_blob(image, overwrite=True, content_settings=cs)
 
     def _get_object(self, container: str, path: str) -> bytes:
         logging.info("Getting object from container: %s path %s", container, path)
@@ -37,9 +39,10 @@ class BlobClient:
         logging.warning("Puting process file: %s", path)
         self._put_object(self.settings.process_container, path, json.dumps(data))
 
-    def put_image(self, path: str, image: bytes):
+    def put_image(self, path: str, image: bytes, content_type: str | None):
         logging.warning("Puting image: %s", path)
-        self._put_object(self.settings.image_container, path, image)
+        settings = ContentSettings(content_type=content_type)
+        self._put_object(self.settings.image_container, path, image, settings)
 
     def get_image(self, path: str) -> bytes:
         logging.warning("Puting image: %s", path)
