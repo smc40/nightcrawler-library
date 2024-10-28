@@ -15,5 +15,5 @@ def get_content(url: str) -> tuple[bytes, str|None]:
     return response.content, response.headers.get("Content-Type")
 
 
-def checksum(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+def checksum(data: str) -> str:
+    return hashlib.sha256(data.encode('utf-8')).hexdigest()
