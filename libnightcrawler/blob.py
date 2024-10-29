@@ -48,6 +48,10 @@ class BlobClient:
         logging.warning("Puting image: %s", path)
         return self._get_object(self.settings.image_container, path)
 
+    def image_exists(self, path: str) -> bool:
+        blob = self.service_client.get_blob_client(container=self.settings.image_container, blob=path)
+        return blob.exists()
+
     def make_public(self, path: str):
         logging.warning("Copying to public container: %s", path)
         data = self.get_image(path)

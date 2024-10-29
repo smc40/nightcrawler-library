@@ -189,14 +189,18 @@ class Context:
                 }
                 images = []
                 for image_url in result.images:
+                    checksum = lu.checksum(image_url)
+                    path = f"{result.request.organization.name}/{checksum}"
                     try:
+                        if self.blob_client.image_exists(path):
+                            # If already exists in storage, no need to re-download it
+                            images.append({"source": image_url, "path": path})
+                            continue
                         content, content_type = lu.get_content(image_url)
                         logging.warning(content_type)
                     except Exception as e:
                         logging.error("failed to download image from %s: %s", image_url, str(e))
                         continue
-                    checksum = lu.checksum(content)
-                    path = f"{result.request.organization.name}/{checksum}"
                     self.blob_client.put_image(path, content, content_type)
                     images.append({"source": image_url, "path": path})
                 values["images"] = images
