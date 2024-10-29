@@ -9,8 +9,9 @@ class DBClient:
     def __init__(self, settings):
         logging.warning("Initializing new DB client")
         self.settings = settings
-        self.migrate()
         self._session_factory = None
+        if settings.auto_migrate:
+            self.migrate()
 
     @property
     def session_factory(self):
