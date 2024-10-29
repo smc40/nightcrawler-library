@@ -1,7 +1,9 @@
 import json
 import logging
+from datetime import datetime, timezone
 from azure.storage.blob import BlobServiceClient, ContentSettings
 from azure.identity import DefaultAzureCredential
+import azure.core.exceptions
 
 
 class BlobClient:
@@ -64,3 +66,18 @@ class BlobClient:
             container=self.settings.public_container, blob=path
         )
         client.delete_blob()
+
+    def cache(self, path, content):
+        logging.info("Caching file %s", path)
+        self._put_object(self.settings.process_container, path, json.dumps(content))
+
+    def get_cached(self, path: str, expiry: int) -> bytes | None:
+        blob = self.service_client.get_blob_client(container=self.settings.process_container, blob=path)
+        try:
+            properties = blob.get_blob_properties()
+        except azure.core.exceptions.ResourceNotFoundError:
+            return None
+        date = properties.last_modified
+        if (datetime.now(timezone.utc) - date).seconds >= expiry:
+            return None
+        return json.loads(blob.download_blob().readall())
