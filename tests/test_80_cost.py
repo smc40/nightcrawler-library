@@ -10,14 +10,14 @@ def test_cost(context, case_id):
     initial = context.get_current_cost(case_id)
     assert initial == 0
 
-    context.report_cost(case_id, 10, Cost.Unit.UNIT)
+    context.report_cost(case_id, {Cost.Unit.UNIT.value: 10})
     assert context.get_current_cost(case_id) == initial + 10 * COST_UNIT_FACTOR[Cost.Unit.UNIT.value]
 
     # Check unit conversion
-    context.report_cost(case_id, 3, Cost.Unit.ZYTE)
+    context.report_cost(case_id, {Cost.Unit.ZYTE.value: 3})
     expected = initial + 10 + 3 * COST_UNIT_FACTOR[Cost.Unit.ZYTE.value]
     assert context.get_current_cost(case_id) == expected
 
     # Add cost to another case and check it didn't change
-    context.report_cost(case_id + 1, 3, Cost.Unit.ZYTE)
+    context.report_cost(case_id + 1, {Cost.Unit.ZYTE.value: 3})
     assert context.get_current_cost(case_id) == expected

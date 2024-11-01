@@ -28,7 +28,7 @@ class AuditLog(Base):
 
     id = Column(Integer, nullable=False, primary_key=True)
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
-    user_id = Column(String, nullable=False, index=True)
+    case_id = Column(Integer, nullable=False, index=True, default=0)
     operation = Column(String, nullable=False, index=True)
     payload = Column(JSON, nullable=False)
 

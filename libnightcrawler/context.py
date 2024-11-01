@@ -44,12 +44,25 @@ class Context:
         return self._store_object(f"{org_id}/{path}", content)
 
     # -------------------------------------
+    # Report audit
+    # -------------------------------------
+    def add_audit_log(self, case_id: int, operation: str, payload: dict):
+        logging.warning(f"{case_id}: Adding to audit log: {operation}")
+        logging.info(payload)
+        with self.db_client.session_factory() as session:
+            session.add(lds.AuditLog(case_id=case_id, operation=operation, payload=payload))
+            session.commit()
+
+    # -------------------------------------
     # Cost management
     # -------------------------------------
-    def report_cost(self, case_id: int, cost: int, unit: str):
-        logging.warning(f"{case_id}: Adding cost : {cost} {unit}")
+    def report_cost(self, case_id: int, costs: dict[str, int]):
+        logging.warning(f"{case_id}: Adding costs : {costs}")
         with self.db_client.session_factory() as session:
-            session.add(lds.Cost(case_id=case_id, value=cost, unit=unit))
+            for k,v in costs.items():
+                if not v:
+                    continue
+                session.add(lds.Cost(case_id=case_id, value=v, unit=k))
             session.commit()
 
     def get_current_cost(self, case_id: int) -> float:
@@ -162,6 +175,16 @@ class Context:
                 .values(crawl_state=lds.Keyword.CrawlState.PENDING)
             )
             session.execute(stmt)
+            session.add(
+                lds.AuditLog(
+                    case_id=case_id,
+                    operation="change_keyword_state",
+                    payload={
+                        "keyword_id": keyword_id,
+                        "status": lds.Keyword.CrawlState.PENDING.name,
+                    },
+                )
+            )
             session.commit()
 
     def set_crawl_error(self, case_id: int, keyword_id: int, error: str):
@@ -173,11 +196,22 @@ class Context:
                 .values(crawl_state=lds.Keyword.CrawlState.FAILED, error=error)
             )
             session.execute(stmt)
+            session.add(
+                lds.AuditLog(
+                    case_id=case_id,
+                    operation="change_keyword_state",
+                    payload={
+                        "keyword_id": keyword_id,
+                        "status": lds.Keyword.CrawlState.FAILED.name,
+                    },
+                )
+            )
             session.commit()
 
     def store_results(
         self,
         data: list[lo.CrawlResult],
+        case_id: int,
         keyword_id: int | None = None,
         status: lds.Keyword.CrawlState = lds.Keyword.CrawlState.SUCCEEDED,
     ):
@@ -216,4 +250,11 @@ class Context:
                     .values(crawl_state=status)
                 )
                 session.execute(statement)
+            session.add(
+                lds.AuditLog(
+                    case_id=case_id,
+                    operation="change_keyword_state",
+                    payload={"keyword_id": keyword_id, "status": status.name, "offers": len(data)},
+                )
+            )
             session.commit()
