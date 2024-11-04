@@ -239,7 +239,7 @@ class Context:
                 values["images"] = images
                 stmt = insert(lds.Offer).values(values)
                 do_update_stmt = stmt.on_conflict_do_update(
-                    constraint="uq_offers_url_case_id",
+                    constraint="uq_offers_uid_case_id",
                     set_={x: getattr(stmt.excluded, x) for x in values},
                 )
                 session.execute(do_update_stmt)

@@ -176,11 +176,11 @@ class Offer(Base):
     language = Column(String, nullable=False)
     score = Column(Numeric, nullable=False)
     crawled_at = Column(UtcDateTime, nullable=False, server_default=func.now())
-    uid = Column(String, nullable=False)
+    uid = mapped_column(String, nullable=False)
     root = Column(String, nullable=False)
     relevant = Column(Boolean, nullable=False, default=True)
     images = Column(JSON, nullable=True)
-    __table_args__ = (UniqueConstraint("url", "case_id", name="uq_offers_url_case_id"),)
+    __table_args__ = (UniqueConstraint("uid", "case_id", name="uq_offers_uid_case_id"),)
 
     def to_dict(self):
         return {field.name: getattr(self, field.name) for field in self.__table__.c}
