@@ -78,6 +78,7 @@ class BlobClient:
         except azure.core.exceptions.ResourceNotFoundError:
             return None
         date = properties.last_modified
-        if (datetime.now(timezone.utc) - date).seconds >= expiry:
+        if (datetime.now(timezone.utc) - date).total_seconds() >= expiry:
+            logging.info("%s exists but is obsolete for TTL (%d)", path, expiry)
             return None
         return json.loads(blob.download_blob().readall())

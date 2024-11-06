@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import json
 from libnightcrawler.settings import Settings
@@ -252,6 +252,7 @@ class Context:
                 session.execute(statement)
             session.add(
                 lds.AuditLog(
+                    created_at=datetime.now(timezone.utc),
                     case_id=case_id,
                     operation="change_keyword_state",
                     payload={"keyword_id": keyword_id, "status": status.name, "offers": len(data)},
