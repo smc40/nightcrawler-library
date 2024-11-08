@@ -26,6 +26,7 @@ def add_parser(subparsers, parents):
         help="Blob conatiner",
     )
     get.add_argument("path", help="Blob path")
+    get.add_argument("--cache", type=int, default=0, help="Get cached data with this lifetime")
     return parser
 
 
@@ -39,6 +40,9 @@ def apply(args):
         cu.print_json([x.__dict__ if args.full else x.name for x in container.list_blobs()])
 
     elif args.case == "get":
+        if args.cache:
+            cu.print_json(context.blob_client.get_cached(args.path, args.cache))
+            return
         service_client = context.blob_client.service_client
         client = service_client.get_blob_client(args.container, blob=args.path)
         cu.print_json(client.download_blob().readall())

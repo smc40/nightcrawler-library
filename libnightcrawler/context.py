@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import json
 from libnightcrawler.settings import Settings
@@ -219,7 +219,7 @@ class Context:
         with self.db_client.session_factory() as session:
             for result in data:
                 values = {
-                    x: y for x, y in result.offer.to_dict().items() if x not in ["id", "crawled_at"]
+                    x: y for x, y in result.offer.to_dict().items() if x not in ["id", "crawled_at", "status"]
                 }
                 images = []
                 for image_url in result.images:
@@ -239,7 +239,7 @@ class Context:
                 values["images"] = images
                 stmt = insert(lds.Offer).values(values)
                 do_update_stmt = stmt.on_conflict_do_update(
-                    constraint="uq_offers_url_case_id",
+                    constraint="uq_offers_uid_case_id",
                     set_={x: getattr(stmt.excluded, x) for x in values},
                 )
                 session.execute(do_update_stmt)
@@ -252,6 +252,7 @@ class Context:
                 session.execute(statement)
             session.add(
                 lds.AuditLog(
+                    created_at=datetime.now(timezone.utc),
                     case_id=case_id,
                     operation="change_keyword_state",
                     payload={"keyword_id": keyword_id, "status": status.name, "offers": len(data)},

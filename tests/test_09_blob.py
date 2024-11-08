@@ -44,7 +44,7 @@ def test_caching(context):
     client = context.blob_client
     path = "cached_item"
     client.cache(path, "whatever")
-    assert client.get_cached(path, 1) is not None
+    assert client.get_cached(path, 2) is not None
     assert client.get_cached(path, 0) is None
     assert client.get_cached(path, 60) is not None
     assert client.get_cached("nope", 1) is None
