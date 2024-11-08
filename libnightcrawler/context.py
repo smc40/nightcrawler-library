@@ -54,32 +54,32 @@ class Context:
             session.commit()
 
     # -------------------------------------
-    # Cost management
+    # Usage management
     # -------------------------------------
-    def report_cost(self, case_id: int, costs: dict[str, int]):
-        logging.warning(f"{case_id}: Adding costs : {costs}")
+    def report_usage(self, case_id: int, usages: dict[str, int]):
+        logging.warning(f"{case_id}: Adding usage : {usages}")
         with self.db_client.session_factory() as session:
-            for k,v in costs.items():
+            for k,v in usages.items():
                 if not v:
                     continue
-                session.add(lds.Cost(case_id=case_id, value=v, unit=k))
+                session.add(lds.Usage(case_id=case_id, value=v, unit=k))
             session.commit()
 
-    def get_current_cost(self, case_id: int) -> float:
+    def get_current_usage(self, case_id: int) -> float:
         totals = dict[str, int]()
-        # Get sum of costs group by unit
+        # Get sum of usages group by unit
         with self.db_client.session_factory() as session:
             values = (
-                session.query(lds.Cost.unit, func.sum(lds.Cost.value))
-                .where(lds.Cost.case_id == case_id)
-                .group_by(lds.Cost.unit)
+                session.query(lds.Usage.unit, func.sum(lds.Usage.value))
+                .where(lds.Usage.case_id == case_id)
+                .group_by(lds.Usage.unit)
                 .all()
             )
             for unit, value in values:
                 totals[unit] = totals.get(unit, 0) + value
 
         # Combine different units
-        return sum([v * lds.COST_UNIT_FACTOR[k] for k, v in totals.items()])
+        return sum([v * lds.USAGE_UNIT_FACTOR[k] for k, v in totals.items()])
 
     # -------------------------------------
     # DS pipeline utils
