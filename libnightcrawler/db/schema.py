@@ -164,6 +164,15 @@ class Keyword(Base):
 class Offer(Base):
     __tablename__ = "offers"
 
+    class OfferStatus(str, enum.Enum):
+        UNPROCESSED = enum.auto()
+        BOOKMARKED = enum.auto()
+        IN_PROGRESS = enum.auto()
+        CONFIRMED = enum.auto()
+        DISMISSED = enum.auto()
+        NOT_RELEVANT = enum.auto()
+        NEVER_RELEVANT = enum.auto()
+
     id = Column(Integer, primary_key=True, index=True, nullable=False, autoincrement=True)
     case_id = Column(Integer, nullable=False, primary_key=True, index=True)
     url = Column(String, nullable=False)
@@ -180,6 +189,7 @@ class Offer(Base):
     root = Column(String, nullable=False)
     relevant = Column(Boolean, nullable=False, default=True)
     images = Column(JSON, nullable=True)
+    status = mapped_column(Enum(OfferStatus), nullable=False, default=OfferStatus.UNPROCESSED, server_default='UNPROCESSED')
     __table_args__ = (UniqueConstraint("uid", "case_id", name="uq_offers_uid_case_id"),)
 
     def to_dict(self):

@@ -219,7 +219,7 @@ class Context:
         with self.db_client.session_factory() as session:
             for result in data:
                 values = {
-                    x: y for x, y in result.offer.to_dict().items() if x not in ["id", "crawled_at"]
+                    x: y for x, y in result.offer.to_dict().items() if x not in ["id", "crawled_at", "status"]
                 }
                 images = []
                 for image_url in result.images:
