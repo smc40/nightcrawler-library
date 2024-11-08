@@ -28,7 +28,7 @@ class AuditLog(Base):
 
     id = Column(Integer, nullable=False, primary_key=True)
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
-    user_id = Column(String, nullable=False, index=True)
+    case_id = Column(Integer, nullable=False, index=True, default=0)
     operation = Column(String, nullable=False, index=True)
     payload = Column(JSON, nullable=False)
 
@@ -164,6 +164,15 @@ class Keyword(Base):
 class Offer(Base):
     __tablename__ = "offers"
 
+    class OfferStatus(str, enum.Enum):
+        UNPROCESSED = enum.auto()
+        BOOKMARKED = enum.auto()
+        IN_PROGRESS = enum.auto()
+        CONFIRMED = enum.auto()
+        DISMISSED = enum.auto()
+        NOT_RELEVANT = enum.auto()
+        NEVER_RELEVANT = enum.auto()
+
     id = Column(Integer, primary_key=True, index=True, nullable=False, autoincrement=True)
     case_id = Column(Integer, nullable=False, primary_key=True, index=True)
     url = Column(String, nullable=False)
@@ -176,11 +185,12 @@ class Offer(Base):
     language = Column(String, nullable=False)
     score = Column(Numeric, nullable=False)
     crawled_at = Column(UtcDateTime, nullable=False, server_default=func.now())
-    uid = Column(String, nullable=False)
+    uid = mapped_column(String, nullable=False)
     root = Column(String, nullable=False)
     relevant = Column(Boolean, nullable=False, default=True)
     images = Column(JSON, nullable=True)
-    __table_args__ = (UniqueConstraint("url", "case_id", name="uq_offers_url_case_id"),)
+    status = mapped_column(Enum(OfferStatus), nullable=False, default=OfferStatus.UNPROCESSED, server_default='UNPROCESSED')
+    __table_args__ = (UniqueConstraint("uid", "case_id", name="uq_offers_uid_case_id"),)
 
     def to_dict(self):
         return {field.name: getattr(self, field.name) for field in self.__table__.c}

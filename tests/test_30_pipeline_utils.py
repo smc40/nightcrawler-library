@@ -12,10 +12,10 @@ def gen_data(to_be_processed, suffix, images=None):
             url="xxx_" + str(i),
             text=suffix,
             root="",
-            uid="",
+            uid="xxx_" + str(i),
             platform="",
             source="",
-            title="",
+            title="stg",
             language="",
             score=0,
             relevant=True,
@@ -43,7 +43,7 @@ def test_pipeline_utils(context, public_image, case_id):
 
     # Store results
     data = gen_data(to_be_processed, "1")
-    context.store_results(data, to_be_processed[0].keyword_id)
+    context.store_results(data, to_be_processed[0].case_id, to_be_processed[0].keyword_id)
 
     # Check not empty anymore
     assert len(session.query(Offer).all()) == 2
@@ -53,7 +53,7 @@ def test_pipeline_utils(context, public_image, case_id):
 
     # Check results replaced instead of addition
     data = gen_data(to_be_processed, "2", [public_image])
-    context.store_results(data)
+    context.store_results(data, 0)
     offers = session.query(Offer).all()
     assert len(offers) == 2
 
