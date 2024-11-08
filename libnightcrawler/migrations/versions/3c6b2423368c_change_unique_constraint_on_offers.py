@@ -36,7 +36,7 @@ def upgrade() -> None:
     seen = set()
     to_delete = list()
     to_save = list()
-    offers = session.query(Offer).all()
+    offers = session.query(Offer).options(sa.orm.defer(Offer.status)).all()
     for offer in offers:
         offer.uid = lu.checksum(f"{offer.url.split('?')[0]}_{offer.title}")
         if offer.uid in seen:
