@@ -58,7 +58,7 @@ class BlobClient:
         logging.warning("Copying to public container: %s", path)
         data = self.get_image(path)
         self._put_object(self.settings.public_container, path, data)
-        return "/".join([self.settings.account_url, self.settings.public_container, path])
+        return "/".join([self.settings.account_url.rstrip("/"), self.settings.public_container, path])
 
     def remove_from_public(self, path: str):
         logging.warning("Removing from public container: %s", path)
