@@ -114,8 +114,8 @@ class CaseMember(Base):
     user_id = Column(String, index=True, nullable=False, primary_key=True)
 
 
-class Cost(Base):
-    __tablename__ = "costs"
+class Usage(Base):
+    __tablename__ = "usages"
 
     class Unit(str, enum.Enum):
         UNIT = "unit"
@@ -128,9 +128,9 @@ class Cost(Base):
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
 
 
-COST_UNIT_FACTOR = {
-    Cost.Unit.UNIT.value: 1,
-    Cost.Unit.ZYTE.value: 3,
+USAGE_UNIT_FACTOR = {
+    Usage.Unit.UNIT.value: 1,
+    Usage.Unit.ZYTE.value: 3,
 }
 
 
