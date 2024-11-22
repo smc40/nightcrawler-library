@@ -254,3 +254,23 @@ class Context:
                 )
             )
             session.commit()
+
+
+    # -------------------------------------
+    # Users
+    # -------------------------------------
+    def create_user(self, user_id, name, email):
+        with self.db_client.session_factory() as session:
+            values = {
+                "id": user_id,
+                "name": name,
+                "mail": email,
+                "role": lds.User.Roles.USER,
+            }
+            stmt = insert(lds.User).values(values)
+            do_update_stmt = stmt.on_conflict_do_update(
+                constraint="users_pkey",
+                set_={x: getattr(stmt.excluded, x) for x in ["name", "mail"]},
+            )
+            session.execute(do_update_stmt)
+            session.commit()
