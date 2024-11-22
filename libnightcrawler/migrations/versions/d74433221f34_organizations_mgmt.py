@@ -44,6 +44,9 @@ def upgrade() -> None:
         )
     )
 
+    op.add_column("keywords", sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
+    op.execute("update keywords set updated_at=created_at")
+
 
 
 def downgrade() -> None:

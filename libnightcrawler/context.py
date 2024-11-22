@@ -58,7 +58,7 @@ class Context:
     def report_usage(self, case_id: int, usages: dict[str, int]):
         logging.warning(f"{case_id}: Adding usage : {usages}")
         with self.db_client.session_factory() as session:
-            for k,v in usages.items():
+            for k, v in usages.items():
                 if not v:
                     continue
                 session.add(lds.Usage(case_id=case_id, value=v, unit=k))
@@ -158,7 +158,10 @@ class Context:
             stmt = (
                 sa.update(lds.Keyword)
                 .where(lds.Keyword.id == keyword_id)
-                .values(crawl_state=lds.Keyword.CrawlState.PENDING)
+                .values(
+                    crawl_state=lds.Keyword.CrawlState.PENDING,
+                    updated_at=datetime.now(timezone.utc),
+                )
             )
             session.execute(stmt)
             session.add(
@@ -179,7 +182,11 @@ class Context:
             stmt = (
                 sa.update(lds.Keyword)
                 .where(lds.Keyword.id == keyword_id)
-                .values(crawl_state=lds.Keyword.CrawlState.FAILED, error=error)
+                .values(
+                    crawl_state=lds.Keyword.CrawlState.FAILED,
+                    error=error,
+                    updated_at=datetime.now(timezone.utc),
+                )
             )
             session.execute(stmt)
             session.add(
@@ -205,7 +212,9 @@ class Context:
         with self.db_client.session_factory() as session:
             for result in data:
                 values = {
-                    x: y for x, y in result.offer.to_dict().items() if x not in ["id", "crawled_at", "status"]
+                    x: y
+                    for x, y in result.offer.to_dict().items()
+                    if x not in ["id", "crawled_at", "status"]
                 }
                 images = []
                 for image_url in result.images:
@@ -233,7 +242,7 @@ class Context:
                 statement = (
                     sa.update(lds.Keyword)
                     .where(lds.Keyword.id == keyword_id)
-                    .values(crawl_state=status)
+                    .values(crawl_state=status, updated_at=datetime.now(timezone.utc))
                 )
                 session.execute(statement)
             session.add(

@@ -155,6 +155,7 @@ class Keyword(Base):
     query = Column(String, nullable=False)
     type = mapped_column(Enum(KeywordType), nullable=False)
     created_at = Column(UtcDateTime, nullable=False, server_default=func.now())
+    updated_at = Column(UtcDateTime, nullable=False, server_default=func.now())
     description = Column(String, nullable=True)
     crawl_state = mapped_column(Enum(CrawlState), nullable=False)
     error = Column(String, nullable=True)
