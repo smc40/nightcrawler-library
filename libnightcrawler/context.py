@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 import logging
-import json
 from libnightcrawler.settings import Settings
 from libnightcrawler.db.client import DBClient
 from libnightcrawler.blob import BlobClient
@@ -88,19 +87,6 @@ class Context:
         self, name: str | None = None, index_by_name: bool = True
     ) -> dict[str, lo.Organization]:
         logging.info("Fetching organizations")
-        if self.settings.use_file_storage:
-            if not index_by_name:
-                raise ValueError("Data form local file storage does not have IDs")
-
-            with open(self.settings.organizations_path, "r") as f:
-                data = json.load(f)
-                res = dict[str, lo.Organization]()
-                for name, value in data.items():
-                    if name is None:
-                        continue
-                    res[name] = lo.Organization(name=name, **value)
-                return res
-
         with self.db_client.session_factory() as session:
             orgs = session.query(
                 lds.Organization,
@@ -125,11 +111,11 @@ class Context:
                 res[key] = lo.Organization(
                     name=org[0].name,
                     unit=org[0].unit,
-                    countries=org[0].countries.split(";"),
-                    currencies=org[0].currencies.split(";"),
-                    languages=org[0].languages.split(";"),
                     blacklist=[
                         x[0] for x in org[1] if x[1] == lds.FilterList.FilterListType.BLACKLIST.name
+                    ],
+                    whitelist=[
+                        x[0] for x in org[1] if x[1] == lds.FilterList.FilterListType.WHITELIST.name
                     ],
                 )
             return res

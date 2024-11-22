@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     UniqueConstraint,
     Date,
+    Table,
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 
@@ -38,9 +39,6 @@ class Organization(Base):
 
     id = Column(Integer, nullable=False, primary_key=True)
     name = Column(String, nullable=False, index=True)
-    countries = Column(String, nullable=False)
-    languages = Column(String, nullable=False)
-    currencies = Column(String, nullable=False)
     unit = Column(String, nullable=False)
 
 
@@ -54,13 +52,16 @@ class User(Base):
     id = Column(String, nullable=False, primary_key=True)
     name = Column(String, nullable=False)
     mail = Column(String, nullable=False)
-    org_id = Column(
-        Integer,
-        ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    role = mapped_column(Enum(Roles), nullable=False)
+    role = mapped_column(Enum(Roles), nullable=False, default=Roles.USER, server_default='USER')
+
+
+# Many-to-many relation table
+UserOrganizations = Table(
+    "user_organizations",
+    Base.metadata,
+    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("org_id", ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class FilterList(Base):
@@ -172,6 +173,8 @@ class Offer(Base):
         DISMISSED = enum.auto()
         NOT_RELEVANT = enum.auto()
         NEVER_RELEVANT = enum.auto()
+        FILTERED = enum.auto()
+        ERROR = enum.auto()
 
     id = Column(Integer, primary_key=True, index=True, nullable=False, autoincrement=True)
     case_id = Column(Integer, nullable=False, primary_key=True, index=True)
