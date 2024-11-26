@@ -6,10 +6,8 @@ from libnightcrawler.db.schema import Offer
 class Organization:
     name: str
     unit: str
-    countries: list[str]
-    languages: list[str]
-    currencies: list[str]
     blacklist: list[str]
+    whitelist: list[str]
 
 
 @dataclass

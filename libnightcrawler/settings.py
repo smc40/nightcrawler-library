@@ -39,5 +39,4 @@ class Settings(BaseSettings):
     sendgrid: SendgridSettings = Field(default_factory=SendgridSettings)
     blob: BlobSettings = Field(default_factory=BlobSettings)
     use_file_storage: bool = True
-    organizations_path: str = "tests/organizations.json"
     model_config = SettingsConfigDict(env_prefix="nightcrawler_")

@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 import logging
-import json
 from libnightcrawler.settings import Settings
 from libnightcrawler.db.client import DBClient
 from libnightcrawler.blob import BlobClient
@@ -59,7 +58,7 @@ class Context:
     def report_usage(self, case_id: int, usages: dict[str, int]):
         logging.warning(f"{case_id}: Adding usage : {usages}")
         with self.db_client.session_factory() as session:
-            for k,v in usages.items():
+            for k, v in usages.items():
                 if not v:
                     continue
                 session.add(lds.Usage(case_id=case_id, value=v, unit=k))
@@ -88,19 +87,6 @@ class Context:
         self, name: str | None = None, index_by_name: bool = True
     ) -> dict[str, lo.Organization]:
         logging.info("Fetching organizations")
-        if self.settings.use_file_storage:
-            if not index_by_name:
-                raise ValueError("Data form local file storage does not have IDs")
-
-            with open(self.settings.organizations_path, "r") as f:
-                data = json.load(f)
-                res = dict[str, lo.Organization]()
-                for name, value in data.items():
-                    if name is None:
-                        continue
-                    res[name] = lo.Organization(name=name, **value)
-                return res
-
         with self.db_client.session_factory() as session:
             orgs = session.query(
                 lds.Organization,
@@ -125,11 +111,11 @@ class Context:
                 res[key] = lo.Organization(
                     name=org[0].name,
                     unit=org[0].unit,
-                    countries=org[0].countries.split(";"),
-                    currencies=org[0].currencies.split(";"),
-                    languages=org[0].languages.split(";"),
                     blacklist=[
                         x[0] for x in org[1] if x[1] == lds.FilterList.FilterListType.BLACKLIST.name
+                    ],
+                    whitelist=[
+                        x[0] for x in org[1] if x[1] == lds.FilterList.FilterListType.WHITELIST.name
                     ],
                 )
             return res
@@ -172,7 +158,10 @@ class Context:
             stmt = (
                 sa.update(lds.Keyword)
                 .where(lds.Keyword.id == keyword_id)
-                .values(crawl_state=lds.Keyword.CrawlState.PENDING)
+                .values(
+                    crawl_state=lds.Keyword.CrawlState.PENDING,
+                    updated_at=datetime.now(timezone.utc),
+                )
             )
             session.execute(stmt)
             session.add(
@@ -193,7 +182,11 @@ class Context:
             stmt = (
                 sa.update(lds.Keyword)
                 .where(lds.Keyword.id == keyword_id)
-                .values(crawl_state=lds.Keyword.CrawlState.FAILED, error=error)
+                .values(
+                    crawl_state=lds.Keyword.CrawlState.FAILED,
+                    error=error,
+                    updated_at=datetime.now(timezone.utc),
+                )
             )
             session.execute(stmt)
             session.add(
@@ -219,7 +212,9 @@ class Context:
         with self.db_client.session_factory() as session:
             for result in data:
                 values = {
-                    x: y for x, y in result.offer.to_dict().items() if x not in ["id", "crawled_at", "status"]
+                    x: y
+                    for x, y in result.offer.to_dict().items()
+                    if x not in ["id", "crawled_at", "status"]
                 }
                 images = []
                 for image_url in result.images:
@@ -247,7 +242,7 @@ class Context:
                 statement = (
                     sa.update(lds.Keyword)
                     .where(lds.Keyword.id == keyword_id)
-                    .values(crawl_state=status)
+                    .values(crawl_state=status, updated_at=datetime.now(timezone.utc))
                 )
                 session.execute(statement)
             session.add(
@@ -258,4 +253,24 @@ class Context:
                     payload={"keyword_id": keyword_id, "status": status.name, "offers": len(data)},
                 )
             )
+            session.commit()
+
+
+    # -------------------------------------
+    # Users
+    # -------------------------------------
+    def create_user(self, user_id, name, email):
+        with self.db_client.session_factory() as session:
+            values = {
+                "id": user_id,
+                "name": name,
+                "mail": email,
+                "role": lds.User.Roles.USER,
+            }
+            stmt = insert(lds.User).values(values)
+            do_update_stmt = stmt.on_conflict_do_update(
+                constraint="users_pkey",
+                set_={x: getattr(stmt.excluded, x) for x in ["name", "mail"]},
+            )
+            session.execute(do_update_stmt)
             session.commit()

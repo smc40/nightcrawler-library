@@ -11,7 +11,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import orm, text, func
-from libnightcrawler.db.schema import FilterList, Organization, Keyword, User
+from libnightcrawler.db.schema import FilterList, Keyword, User
 
 
 # revision identifiers, used by Alembic.
@@ -40,9 +40,9 @@ def upgrade() -> None:
         "organizations",
         sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
         sa.Column("name", sa.String(), nullable=False, index=True),
-        sa.Column("countries", sa.String(), nullable=False),
-        sa.Column("languages", sa.String(), nullable=False),
-        sa.Column("currencies", sa.String(), nullable=False),
+        sa.Column("countries", sa.String(), nullable=True),
+        sa.Column("languages", sa.String(), nullable=True),
+        sa.Column("currencies", sa.String(), nullable=True),
         sa.Column("unit", sa.String(), nullable=False),
     )
 
@@ -175,33 +175,9 @@ def upgrade() -> None:
     )
 
     # Insert first organizations
-    tenants = [
-        Organization(
-            id=1,
-            name="Swissmedic MEP",
-            countries="ch",
-            currencies="CHF",
-            languages="de;fr;it;en",
-            unit="mep",
-        ),
-        Organization(
-            id=2,
-            name="Swissmedic AM",
-            countries="ch",
-            currencies="CHF",
-            languages="de;fr;it;en",
-            unit="am",
-        ),
-        Organization(
-            id=3,
-            name="Ages",
-            countries="at",
-            currencies="EURO",
-            languages="de;en",
-            unit="chocolatine",
-        ),
-    ]
-    session.bulk_save_objects(tenants)
+    session.execute(text("INSERT into organizations (id, name, unit) values (1, 'Swissmedic MEP', 'mep');"))
+    session.execute(text("INSERT into organizations (id, name, unit) values (2, 'Swissmedic AM', 'am');"))
+    session.execute(text("INSERT into organizations (id, name, unit) values (3, 'Ages', 'chocolatine');"))
 
     # Insert blacklist
     items = [
