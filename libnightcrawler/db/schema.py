@@ -48,6 +48,7 @@ class User(Base):
     class Roles(str, enum.Enum):
         ADMIN = enum.auto()
         USER = enum.auto()
+        SUPERADMIN = enum.auto()
 
     id = Column(String, nullable=False, primary_key=True)
     name = Column(String, nullable=False)
