@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
 from libnightcrawler.settings import Settings
 from libnightcrawler.db.client import DBClient
@@ -31,16 +31,6 @@ class Context:
         if self._blob_client is None:
             self._blob_client = BlobClient(self.settings.blob)
         return self._blob_client
-
-    # -------------------------------------
-    # Object storage interface
-    # -------------------------------------
-    def _store_object(self, path: str, content: dict):
-        logging.warning("Storing content to %s", path)
-        # TODO
-
-    def store_object(self, org_id: str, path: str, content: dict):
-        return self._store_object(f"{org_id}/{path}", content)
 
     # -------------------------------------
     # Report audit
@@ -120,7 +110,7 @@ class Context:
                 )
             return res
 
-    def get_crawl_requests(self, case_id: int = 0) -> list[lo.CrawlRequest]:
+    def get_crawl_requests(self, case_id: int = 0, keyword_id: int = 0) -> list[lo.CrawlRequest]:
         orgs = self.get_organization(index_by_name=False)
         with self.db_client.session_factory() as session:
             cases = session.query(
@@ -131,7 +121,9 @@ class Context:
             ).join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
             if case_id:
                 cases = cases.where(lds.Case.id == case_id)
-            else:
+            if keyword_id:
+                cases = cases.where(lds.Keyword.id == keyword_id)
+            if (not case_id) and (not keyword_id):
                 today = datetime.now().date()
                 cases = cases.where(
                     sa.and_(
@@ -255,6 +247,48 @@ class Context:
             )
             session.commit()
 
+    # -------------------------------------
+    # Daily schedule helpers
+    # -------------------------------------
+    def disable_expired_cases(self):
+        logging.warning("Disabling expired cases")
+        with self.db_client.session_factory() as session:
+            session.execute(sa.text("update cases set inactive=True, inactive_at=now() where inactive=False and end_date < CURRENT_DATE"))
+            session.commit()
+
+    def get_today_keywords(self) -> list[int]:
+        def get_threshold(repeat):
+            if repeat == "daily":
+                return timedelta(seconds=0)
+            elif repeat == "weekly":
+                return timedelta(days=7)
+            elif repeat == "monthly":
+                return timedelta(days=30)
+            raise ValueError("Unknown repeat : %s", repeat)
+        logging.info("Getting today's keywords")
+        keywords = []
+        today = datetime.now().date()
+        with self.db_client.session_factory() as session:
+            cases = session.query(
+                lds.Case,
+                sa.func.array_agg(lds.Keyword.id),
+                sa.func.min(lds.Keyword.updated_at)
+            ).join(lds.Keyword, lds.Keyword.case_id == lds.Case.id)
+            cases = cases.where(
+                sa.and_(
+                    lds.Case.inactive == False,  # noqa
+                    sa.or_(lds.Case.end_date == None, lds.Case.end_date >= today),  # noqa
+                )
+            )
+            cases = cases.group_by(lds.Case.id).all()
+            now = datetime.now(timezone.utc)
+            for case in cases:
+                if case[2] > (now - get_threshold(case[0].repeat)):
+                    logging.warning("Skipping case %s because of repeat %s", case[0].id, case[0].repeat)
+                else:
+                    keywords.extend(case[1])
+        logging.warning("Today's keywords are: %s", keywords)
+        return keywords
 
     # -------------------------------------
     # Users

@@ -25,7 +25,6 @@ def gen_data(to_be_processed, suffix, images=None):
     ]
 
 
-
 def test_pipeline_utils(context, public_image, case_id):
     to_be_processed = context.get_crawl_requests()
     assert len(to_be_processed) == 2
@@ -44,6 +43,9 @@ def test_pipeline_utils(context, public_image, case_id):
     # Store results
     data = gen_data(to_be_processed, "1")
     context.store_results(data, to_be_processed[0].case_id, to_be_processed[0].keyword_id)
+
+    # Check keyword_id filtering
+    assert len( context.get_crawl_requests(keyword_id=to_be_processed[0].keyword_id)) == 1
 
     # Check not empty anymore
     assert len(session.query(Offer).all()) == 2
@@ -89,3 +91,12 @@ def test_case_expiration(context, public_image, case_id):
 
     _change_dates(session, case_id, today, today)
     assert len(context.get_crawl_requests()) == 2
+
+    context.disable_expired_cases()
+    assert len(context.get_crawl_requests()) == 2
+    assert len(context.get_today_keywords()) == 2
+
+    _change_dates(session, case_id, today, today - timedelta(days=1))
+    context.disable_expired_cases()
+    assert len(context.get_crawl_requests()) == 0
+    assert len(context.get_today_keywords()) == 0
