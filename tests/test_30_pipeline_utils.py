@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from libnightcrawler.db.schema import Offer, Keyword, Case
 
 
-def gen_data(to_be_processed, suffix, images=None):
+def gen_data(to_be_processed, suffix, images=None, status=Offer.OfferStatus.UNPROCESSED):
     if not images:
         images = []
     return [
@@ -19,6 +19,7 @@ def gen_data(to_be_processed, suffix, images=None):
             language="",
             score=0,
             relevant=True,
+            status=status,
             images=images
         )
         for i, x in enumerate(to_be_processed)

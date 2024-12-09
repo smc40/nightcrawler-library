@@ -201,13 +201,15 @@ class Context:
         status: lds.Keyword.CrawlState = lds.Keyword.CrawlState.SUCCEEDED,
     ):
         logging.warning("Storing %d results", len(data))
+        counter = dict[str, int]()
         with self.db_client.session_factory() as session:
             for result in data:
                 values = {
                     x: y
                     for x, y in result.offer.to_dict().items()
-                    if x not in ["id", "crawled_at", "status"]
+                    if x not in ["id", "crawled_at"]
                 }
+                counter[result.offer.status.name] = counter.get(result.offer.status.name, 0) + 1
                 images = []
                 for image_url in result.images:
                     checksum = lu.checksum(image_url)
@@ -237,12 +239,13 @@ class Context:
                     .values(crawl_state=status, updated_at=datetime.now(timezone.utc))
                 )
                 session.execute(statement)
+            logging.info("counters: %s", counter)
             session.add(
                 lds.AuditLog(
                     created_at=datetime.now(timezone.utc),
                     case_id=case_id,
                     operation="change_keyword_state",
-                    payload={"keyword_id": keyword_id, "status": status.name, "offers": len(data)},
+                    payload={"keyword_id": keyword_id, "status": status.name, "offers": len(data), **counter},
                 )
             )
             session.commit()
